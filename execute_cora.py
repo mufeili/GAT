@@ -1,9 +1,9 @@
-import time
+import networkx as nx
 import numpy as np
 import tensorflow as tf
 
 from models import GAT
-from utils import process
+from utils import process, vis_attention
 
 checkpt_file = 'pre_trained/cora/mod_cora.ckpt'
 
@@ -33,8 +33,12 @@ print('residual: ' + str(residual))
 print('nonlinearity: ' + str(nonlinearity))
 print('model: ' + str(model))
 
-adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask = process.load_data(dataset)
+adj, features, labels, y_train, y_val, y_test, train_mask, val_mask, test_mask = process.load_data(dataset)
 features, spars = process.preprocess_features(features)
+
+# networkx graph
+g = nx.from_scipy_sparse_matrix(adj, create_using=nx.DiGraph())
+g.add_edges_from([(v, v) for v in g.nodes()])
 
 nb_nodes = features.shape[0]
 ft_size = features.shape[1]
@@ -63,11 +67,10 @@ with tf.Graph().as_default():
         ffd_drop = tf.placeholder(dtype=tf.float32, shape=())
         is_train = tf.placeholder(dtype=tf.bool, shape=())
 
-    logits = model.inference(ftr_in, nb_classes, nb_nodes, is_train,
-                                attn_drop, ffd_drop,
-                                bias_mat=bias_in,
-                                hid_units=hid_units, n_heads=n_heads,
-                                residual=residual, activation=nonlinearity)
+    logits, attn_coefs = model.inference(ftr_in, nb_classes, nb_nodes, is_train,
+                                         attn_drop, ffd_drop, bias_mat=bias_in,
+                                         hid_units=hid_units, n_heads=n_heads,
+                                         residual=residual, activation=nonlinearity)
     log_resh = tf.reshape(logits, [-1, nb_classes])
     lab_resh = tf.reshape(lbl_in, [-1, nb_classes])
     msk_resh = tf.reshape(msk_in, [-1])
@@ -157,7 +160,7 @@ with tf.Graph().as_default():
         ts_acc = 0.0
 
         while ts_step * batch_size < ts_size:
-            loss_value_ts, acc_ts = sess.run([loss, accuracy],
+            loss_value_ts, acc_ts, attn_coefs = sess.run([loss, accuracy, attn_coefs],
                 feed_dict={
                     ftr_in: features[ts_step*batch_size:(ts_step+1)*batch_size],
                     bias_in: biases[ts_step*batch_size:(ts_step+1)*batch_size],
@@ -170,5 +173,8 @@ with tf.Graph().as_default():
             ts_step += 1
 
         print('Test loss:', ts_loss/ts_step, '; Test accuracy:', ts_acc/ts_step)
+
+        vis_attention.vis_atten(g, nodes_labels=labels.nonzero()[1], N=1,
+                                attn_coefs=attn_coefs, num_heads=n_heads)
 
         sess.close()

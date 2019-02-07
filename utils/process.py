@@ -2,7 +2,6 @@ import numpy as np
 import pickle as pkl
 import networkx as nx
 import scipy.sparse as sp
-from scipy.sparse.linalg.eigen.arpack import eigsh
 import sys
 
 """
@@ -93,7 +92,7 @@ def load_data(dataset_str): # {'pubmed', 'citeseer', 'cora'}
     print(adj.shape)
     print(features.shape)
 
-    return adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask
+    return adj, features, labels, y_train, y_val, y_test, train_mask, val_mask, test_mask
 
 def load_random_data(size):
 

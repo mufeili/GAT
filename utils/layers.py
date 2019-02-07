@@ -31,7 +31,7 @@ def attn_head(seq, out_sz, bias_mat, activation, in_drop=0.0, coef_drop=0.0, res
             else:
                 ret = ret + seq
 
-        return activation(ret)  # activation
+        return activation(ret), coefs
 
 # Experimental sparse attention head (for running on datasets such as Pubmed)
 # N.B. Because of limitations of current TF implementation, will work _only_ if batch_size = 1!
